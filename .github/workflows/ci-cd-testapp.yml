@@ -8,6 +8,10 @@ name: CI/CD Local (testapp)
 permissions:
   contents: write
 
+concurrency:
+  group: testapp-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-push-update:
     env:
@@ -15,6 +19,7 @@ jobs:
       DOCKER_CONFIG: ${{ github.workspace }}/.docker
       BASE_IMAGE: local-registry.default.svc.cluster.local:5000/node:22.20.0-alpine
       BASE_IMAGE_REMOTE: node:22.20.0-alpine
+    timeout-minutes: 45
     runs-on:
       - self-hosted
       - linux
