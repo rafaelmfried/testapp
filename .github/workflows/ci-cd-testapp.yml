@@ -12,8 +12,7 @@ jobs:
   build-push-update:
     env:
       ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
-      DOCKER_CLI_PLUGIN_EXTRA_DIRS: ${{ github.workspace }}/.docker/cli-plugins
-      DOCKER_CLI_EXPERIMENTAL: enabled
+      DOCKER_CONFIG: ${{ github.workspace }}/.docker
     runs-on:
       - self-hosted
       - linux
@@ -25,7 +24,7 @@ jobs:
 
       - name: Install Docker Buildx
         run: |
-          PLUGIN_DIR="${DOCKER_CLI_PLUGIN_EXTRA_DIRS}"
+          PLUGIN_DIR="${DOCKER_CONFIG}/cli-plugins"
           mkdir -p "$PLUGIN_DIR"
           if ! docker buildx version >/dev/null 2>&1; then
             ARCH="$(uname -m)"
