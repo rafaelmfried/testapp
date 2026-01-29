@@ -23,7 +23,7 @@ jobs:
 
       - name: Build and push image (registry interno)
         run: |
-          docker buildx build \
+          docker build \
             -t local-registry.default.svc.cluster.local:5000/testapp:${{ github.sha }} \
             --push \
             -f testapp/docker/Dockerfile.testapp testapp
