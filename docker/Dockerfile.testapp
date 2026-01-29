@@ -1,7 +1,7 @@
 ARG BASE_IMAGE=node:22.20.0-alpine
 FROM ${BASE_IMAGE} AS base
-RUN npm install -g pnpm @nestjs/cli
 RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN pnpm add -g @nestjs/cli
 
 FROM base AS deps
 WORKDIR /app
