@@ -1,7 +1,7 @@
 {
   "name": "testapp",
   "version": "0.0.1",
-  "description": "",
+  "description": "Aplicacao para test de gitops com argocd",
   "author": "Rafael Friederick",
   "private": true,
   "license": "UNLICENSED",
