@@ -19,6 +19,8 @@ jobs:
       DOCKER_CONFIG: ${{ github.workspace }}/.docker
       BASE_IMAGE: local-registry.default.svc.cluster.local:5000/library/node:22.20.0-alpine
       BASE_IMAGE_REMOTE: node:22.20.0-alpine
+      BUILDKIT_IMAGE: local-registry.default.svc.cluster.local:5000/moby/buildkit:buildx-stable-1
+      BUILDKIT_IMAGE_REMOTE: moby/buildkit:buildx-stable-1
     timeout-minutes: 45
     runs-on:
       - self-hosted
@@ -54,10 +56,21 @@ jobs:
             insecure = true
           EOF
 
+      - name: Warm registry cache for buildkit image
+        run: |
+          if docker pull "$BUILDKIT_IMAGE"; then
+            echo "Buildkit image disponivel via registry local: $BUILDKIT_IMAGE"
+            exit 0
+          fi
+          echo "Falha ao puxar buildkit via registry. Tentando baixar direto e espelhar..."
+          docker pull "$BUILDKIT_IMAGE_REMOTE"
+          docker tag "$BUILDKIT_IMAGE_REMOTE" "$BUILDKIT_IMAGE"
+          docker push "$BUILDKIT_IMAGE"
+
       - name: Set up Docker Buildx
         run: |
           docker buildx rm localbuilder || true
-          docker buildx create --name localbuilder --use --driver docker-container --config buildkitd.toml
+          docker buildx create --name localbuilder --use --driver docker-container --driver-opt image="$BUILDKIT_IMAGE" --driver-opt network=host --config buildkitd.toml
           docker buildx inspect --bootstrap
 
       - name: Warm registry cache for base image
@@ -82,6 +95,7 @@ jobs:
           docker buildx build \
             --builder localbuilder \
             --platform linux/arm64 \
+            --network host \
             --cache-from type=registry,ref=local-registry.default.svc.cluster.local:5000/testapp:buildcache \
             --cache-to type=registry,ref=local-registry.default.svc.cluster.local:5000/testapp:buildcache,mode=max \
             --build-arg BASE_IMAGE="$BASE_IMAGE" \
