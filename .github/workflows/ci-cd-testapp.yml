@@ -17,7 +17,7 @@ jobs:
     env:
       ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
       DOCKER_CONFIG: ${{ github.workspace }}/.docker
-      BASE_IMAGE: local-registry.default.svc.cluster.local:5000/node:22.20.0-alpine
+      BASE_IMAGE: local-registry.default.svc.cluster.local:5000/library/node:22.20.0-alpine
       BASE_IMAGE_REMOTE: node:22.20.0-alpine
     timeout-minutes: 45
     runs-on:
@@ -60,13 +60,13 @@ jobs:
           docker buildx create --name localbuilder --use --driver docker-container --config buildkitd.toml
           docker buildx inspect --bootstrap
 
-      - name: Ensure base image in local registry
+      - name: Warm registry cache for base image
         run: |
-          if docker pull "$BASE_IMAGE" >/dev/null 2>&1; then
-            echo "Base image ja existe no registry local: $BASE_IMAGE"
+          if docker pull "$BASE_IMAGE"; then
+            echo "Base image disponivel via registry local (cache/proxy): $BASE_IMAGE"
             exit 0
           fi
-          echo "Base image ausente. Tentando baixar do Docker Hub e espelhar..."
+          echo "Falha ao puxar via registry. Tentando baixar direto e espelhar..."
           docker pull "$BASE_IMAGE_REMOTE"
           docker tag "$BASE_IMAGE_REMOTE" "$BASE_IMAGE"
           docker push "$BASE_IMAGE"
