@@ -41,9 +41,18 @@ jobs:
           fi
           docker buildx version
 
+      - name: Prepare Buildx config (insecure registry)
+        run: |
+          cat > buildkitd.toml <<'EOF'
+          [registry."local-registry.default.svc.cluster.local:5000"]
+            http = true
+            insecure = true
+          EOF
+
       - name: Set up Docker Buildx
         run: |
-          docker buildx create --use
+          docker buildx rm localbuilder || true
+          docker buildx create --name localbuilder --use --driver docker-container --config buildkitd.toml
           docker buildx inspect --bootstrap
 
       - name: Ensure base image in local registry
@@ -60,6 +69,7 @@ jobs:
       - name: Build and push image (registry interno)
         run: |
           docker buildx build \
+            --builder localbuilder \
             --platform linux/arm64 \
             --cache-from type=registry,ref=local-registry.default.svc.cluster.local:5000/testapp:buildcache \
             --cache-to type=registry,ref=local-registry.default.svc.cluster.local:5000/testapp:buildcache,mode=max \
