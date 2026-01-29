@@ -1,0 +1,66 @@
+name: CI/CD Local (testapp)
+
+"on":
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  build-push-update:
+    env:
+      ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
+    runs-on:
+      - self-hosted
+      - linux
+      - k3d
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build and push image (registry interno)
+        run: |
+          docker buildx build \
+            --platform linux/arm64 \
+            -t local-registry.default.svc.cluster.local:5000/testapp:${{ github.sha }} \
+            --push \
+            -f testapp/docker/Dockerfile.testapp testapp
+
+      - name: Update manifests (imagem usada pelo cluster)
+        run: |
+          sed -i "s|image: localhost:30000/testapp:.*|image: localhost:30000/testapp:${{ github.sha }}|" testapp-manifests/deployment.yaml
+          sed -i "s|image: localhost:30000/testapp:.*|image: localhost:30000/testapp:${{ github.sha }}|" testapp-manifests/pod.yaml
+
+      - name: Commit and push manifests
+        run: |
+          if git diff --quiet -- testapp-manifests/deployment.yaml testapp-manifests/pod.yaml; then
+            echo "No manifest changes to commit"
+            exit 0
+          fi
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add testapp-manifests/deployment.yaml testapp-manifests/pod.yaml
+          git commit -m "chore: update image to ${{ github.sha }}"
+          git push
+
+      - name: Install ArgoCD CLI
+        if: env.ARGOCD_AUTH_TOKEN != ''
+        run: |
+          ARCH="$(uname -m)"
+          case "$ARCH" in
+            x86_64) ARCH="amd64" ;;
+            aarch64|arm64) ARCH="arm64" ;;
+            *) echo "Arquitetura nao suportada: $ARCH"; exit 1 ;;
+          esac
+          curl -sSL -o /tmp/argocd "https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-${ARCH}"
+          chmod +x /tmp/argocd
+          echo "/tmp" >> "$GITHUB_PATH"
+
+      - name: Sync ArgoCD
+        if: env.ARGOCD_AUTH_TOKEN != ''
+        run: |
+          argocd login argocd-server.argocd.svc.cluster.local --auth-token "$ARGOCD_AUTH_TOKEN" --insecure
+          argocd app sync testapp
