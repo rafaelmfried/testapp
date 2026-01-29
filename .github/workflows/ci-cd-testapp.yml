@@ -25,7 +25,7 @@ jobs:
         run: |
           docker build \
             -t local-registry.default.svc.cluster.local:5000/testapp:${{ github.sha }} \
-            -f testapp/docker/Dockerfile.testapp testapp
+            -f docker/Dockerfile.testapp .
           docker push local-registry.default.svc.cluster.local:5000/testapp:${{ github.sha }}
 
       - name: Update manifests (imagem usada pelo cluster)
