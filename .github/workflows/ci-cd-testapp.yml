@@ -21,12 +21,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up Docker Buildx
+        run: |
+          docker buildx create --name localbuilder --use || docker buildx use localbuilder
+          docker buildx inspect --bootstrap
+
       - name: Build and push image (registry interno)
         run: |
-          docker build \
+          docker buildx build \
+            --platform linux/arm64 \
+            --cache-from type=registry,ref=local-registry.default.svc.cluster.local:5000/testapp:buildcache \
+            --cache-to type=registry,ref=local-registry.default.svc.cluster.local:5000/testapp:buildcache,mode=max \
             -t local-registry.default.svc.cluster.local:5000/testapp:${{ github.sha }} \
+            --push \
             -f docker/Dockerfile.testapp .
-          docker push local-registry.default.svc.cluster.local:5000/testapp:${{ github.sha }}
 
       - name: Update manifests (imagem usada pelo cluster)
         run: |
