@@ -1,6 +1,6 @@
 name: CI/CD Local (testapp)
 
-"on":
+'on':
   push:
     branches:
       - main
@@ -24,7 +24,6 @@ jobs:
       - name: Build and push image (registry interno)
         run: |
           docker buildx build \
-            --platform linux/arm64 \
             -t local-registry.default.svc.cluster.local:5000/testapp:${{ github.sha }} \
             --push \
             -f testapp/docker/Dockerfile.testapp testapp
