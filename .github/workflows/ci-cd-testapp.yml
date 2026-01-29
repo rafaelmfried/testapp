@@ -13,6 +13,8 @@ jobs:
     env:
       ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
       DOCKER_CONFIG: ${{ github.workspace }}/.docker
+      BASE_IMAGE: local-registry.default.svc.cluster.local:5000/node:22.20.0-alpine
+      BASE_IMAGE_REMOTE: node:22.20.0-alpine
     runs-on:
       - self-hosted
       - linux
@@ -44,12 +46,24 @@ jobs:
           docker buildx create --use
           docker buildx inspect --bootstrap
 
+      - name: Ensure base image in local registry
+        run: |
+          if docker pull "$BASE_IMAGE" >/dev/null 2>&1; then
+            echo "Base image ja existe no registry local: $BASE_IMAGE"
+            exit 0
+          fi
+          echo "Base image ausente. Tentando baixar do Docker Hub e espelhar..."
+          docker pull "$BASE_IMAGE_REMOTE"
+          docker tag "$BASE_IMAGE_REMOTE" "$BASE_IMAGE"
+          docker push "$BASE_IMAGE"
+
       - name: Build and push image (registry interno)
         run: |
           docker buildx build \
             --platform linux/arm64 \
             --cache-from type=registry,ref=local-registry.default.svc.cluster.local:5000/testapp:buildcache \
             --cache-to type=registry,ref=local-registry.default.svc.cluster.local:5000/testapp:buildcache,mode=max \
+            --build-arg BASE_IMAGE="$BASE_IMAGE" \
             -t local-registry.default.svc.cluster.local:5000/testapp:${{ github.sha }} \
             --push \
             -f docker/Dockerfile.testapp .
