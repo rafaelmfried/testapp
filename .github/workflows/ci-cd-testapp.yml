@@ -29,6 +29,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Checkout manifests repo
+        uses: actions/checkout@v4
+        with:
+          repository: rafaelmfried/testapp-manifests
+          path: testapp-manifests
+          token: ${{ secrets.MANIFESTS_REPO_TOKEN }}
+
       - name: Install Docker Buildx
         run: |
           PLUGIN_DIR="${DOCKER_CONFIG}/cli-plugins"
@@ -89,15 +96,15 @@ jobs:
 
       - name: Commit and push manifests
         run: |
-          if git diff --quiet -- testapp-manifests/deployment.yaml testapp-manifests/pod.yaml; then
+          if git -C testapp-manifests diff --quiet -- deployment.yaml pod.yaml; then
             echo "No manifest changes to commit"
             exit 0
           fi
-          git config user.name "github-actions"
-          git config user.email "github-actions@users.noreply.github.com"
-          git add testapp-manifests/deployment.yaml testapp-manifests/pod.yaml
-          git commit -m "chore: update image to ${{ github.sha }}"
-          git push
+          git -C testapp-manifests config user.name "github-actions"
+          git -C testapp-manifests config user.email "github-actions@users.noreply.github.com"
+          git -C testapp-manifests add deployment.yaml pod.yaml
+          git -C testapp-manifests commit -m "chore: update image to ${{ github.sha }}"
+          git -C testapp-manifests push
 
       - name: Install ArgoCD CLI
         if: env.ARGOCD_AUTH_TOKEN != ''
