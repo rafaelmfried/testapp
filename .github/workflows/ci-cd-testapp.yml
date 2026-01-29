@@ -19,6 +19,7 @@ jobs:
       DOCKER_CONFIG: ${{ github.workspace }}/.docker
       BASE_IMAGE: registry-cache.default.svc.cluster.local:5000/library/node:22.20.0-alpine
       BUILDKIT_IMAGE: registry-cache.default.svc.cluster.local:5000/moby/buildkit:v0.26.2
+      ARGOCD_SERVER: argocd-server.argocd.svc.cluster.local
     timeout-minutes: 45
     runs-on:
       - self-hosted
@@ -122,5 +123,9 @@ jobs:
       - name: Sync ArgoCD
         if: env.ARGOCD_AUTH_TOKEN != ''
         run: |
-          argocd login argocd-server.argocd.svc.cluster.local --auth-token "$ARGOCD_AUTH_TOKEN" --insecure
-          argocd app sync testapp
+          argocd \
+            --server "$ARGOCD_SERVER" \
+            --auth-token "$ARGOCD_AUTH_TOKEN" \
+            --grpc-web \
+            --insecure \
+            app sync testapp
