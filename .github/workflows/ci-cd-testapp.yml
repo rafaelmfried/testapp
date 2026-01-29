@@ -17,8 +17,7 @@ jobs:
     env:
       ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
       DOCKER_CONFIG: ${{ github.workspace }}/.docker
-      BASE_IMAGE: local-registry.default.svc.cluster.local:5000/library/node:22.20.0-alpine
-      BASE_IMAGE_REMOTE: node:22.20.0-alpine
+      BASE_IMAGE: registry-cache.default.svc.cluster.local:5000/library/node:22.20.0-alpine
       BUILDKIT_IMAGE: local-registry.default.svc.cluster.local:5000/moby/buildkit:buildx-stable-1
       BUILDKIT_IMAGE_REMOTE: moby/buildkit:buildx-stable-1
     timeout-minutes: 45
@@ -54,6 +53,9 @@ jobs:
           [registry."local-registry.default.svc.cluster.local:5000"]
             http = true
             insecure = true
+          [registry."registry-cache.default.svc.cluster.local:5000"]
+            http = true
+            insecure = true
           EOF
 
       - name: Warm registry cache for buildkit image
@@ -72,17 +74,6 @@ jobs:
           docker buildx rm localbuilder || true
           docker buildx create --name localbuilder --use --driver docker-container --driver-opt image="$BUILDKIT_IMAGE" --driver-opt network=host --config buildkitd.toml
           docker buildx inspect --bootstrap
-
-      - name: Warm registry cache for base image
-        run: |
-          if docker pull "$BASE_IMAGE"; then
-            echo "Base image disponivel via registry local (cache/proxy): $BASE_IMAGE"
-            exit 0
-          fi
-          echo "Falha ao puxar via registry. Tentando baixar direto e espelhar..."
-          docker pull "$BASE_IMAGE_REMOTE"
-          docker tag "$BASE_IMAGE_REMOTE" "$BASE_IMAGE"
-          docker push "$BASE_IMAGE"
 
       - name: Check npm registry access
         run: |
