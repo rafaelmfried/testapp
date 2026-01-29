@@ -12,6 +12,8 @@ jobs:
   build-push-update:
     env:
       ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
+      DOCKER_CLI_PLUGIN_EXTRA_DIRS: ${{ github.workspace }}/.docker/cli-plugins
+      DOCKER_CLI_EXPERIMENTAL: enabled
     runs-on:
       - self-hosted
       - linux
@@ -23,6 +25,8 @@ jobs:
 
       - name: Install Docker Buildx
         run: |
+          PLUGIN_DIR="${DOCKER_CLI_PLUGIN_EXTRA_DIRS}"
+          mkdir -p "$PLUGIN_DIR"
           if ! docker buildx version >/dev/null 2>&1; then
             ARCH="$(uname -m)"
             case "$ARCH" in
@@ -30,16 +34,15 @@ jobs:
               aarch64|arm64) ARCH="arm64" ;;
               *) echo "Arquitetura nao suportada: $ARCH"; exit 1 ;;
             esac
-            mkdir -p ~/.docker/cli-plugins
-            curl -sSL -o ~/.docker/cli-plugins/docker-buildx \
+            curl -sSL -o "$PLUGIN_DIR/docker-buildx" \
               "https://github.com/docker/buildx/releases/download/v0.12.1/buildx-v0.12.1.linux-${ARCH}"
-            chmod +x ~/.docker/cli-plugins/docker-buildx
+            chmod +x "$PLUGIN_DIR/docker-buildx"
           fi
           docker buildx version
 
       - name: Set up Docker Buildx
         run: |
-          docker buildx create --name localbuilder --use || docker buildx use localbuilder
+          docker buildx create --use
           docker buildx inspect --bootstrap
 
       - name: Build and push image (registry interno)
